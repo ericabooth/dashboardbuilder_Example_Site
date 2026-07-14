@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State explorer</title>
+<!-- dashboardbuilder receipt: 2 tabs, 3 panels, theme=tx2036, selector=state. This file is a self-contained starter wireframe: all data is inline JSON (const DASH) and every chart is readable SVG-generating JS below. Search for EDIT-ME to find the intended tweak points. -->
+<style>
+  :root{--accent:#D44500;--accent2:#1B2D55;--bg:#F5F7FA;--line:#DDE3EC;
+        --muted:#6C7A8D;--ink:#1B2D55;--hdbg:#1B2D55;--hdink:#FFFFFF}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink)}
+  header{background:var(--hdbg);color:var(--hdink);padding:20px 26px;border-bottom:none}
+  header h1{font-size:21px}
+  header .sub{font-size:13px;opacity:.8;margin-top:3px}
+  .wrap{max-width:1060px;margin:0 auto;padding:18px 16px 40px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;
+        padding:18px 20px;margin:14px 0;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+  .card h2{font-size:17px;margin-bottom:4px}
+  label{display:block;font-size:12px;font-weight:700;color:var(--muted);
+        text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+  select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+         min-width:260px;max-width:100%;background:#fff;color:var(--ink)}
+  .modebar{display:flex;gap:0;margin:6px 0 0;border:1px solid var(--accent2);
+           border-radius:8px;overflow:hidden;width:fit-content;max-width:100%;flex-wrap:wrap}
+  .modebar button{background:#fff;color:var(--accent2);border:0;padding:9px 18px;
+                  font:inherit;font-weight:600;cursor:pointer}
+  .modebar button.on{background:var(--accent2);color:#fff}
+  .cardtools{display:flex;gap:8px;justify-content:flex-end;margin:2px 0 10px}
+  .dlbtn{background:#fff;color:var(--accent2);border:1px solid var(--line);border-radius:6px;
+         padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .dlbtn:hover{background:var(--bg)}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0}
+  .tile{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .tile .v{font-size:22px;font-weight:800;color:var(--accent2)}
+  .tile .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .interp{background:#FCF3E8;border-left:3px solid var(--accent);color:#7A4A12;
+          font-size:13px;line-height:1.45;padding:9px 12px;border-radius:4px;margin:8px 0}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+  .legend .sw{display:inline-block;width:16px;height:4px;border-radius:2px;
+              margin-right:5px;vertical-align:middle}
+  .barrow{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:13px}
+  .barrow .lab{flex:0 0 200px;color:var(--ink)}
+  .barrow .track{flex:1 1 auto;position:relative;height:24px;background:var(--bg);
+                 border:1px solid var(--line);border-radius:5px}
+  .barrow .fill{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:3px;opacity:.85}
+  .barrow .refmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent2)}
+  .barrow .zero{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--muted);opacity:.55}
+  .barrow .val{flex:0 0 90px;text-align:right;font-weight:700;color:var(--accent2)}
+  .barrow .rv{flex:0 0 110px;font-size:11px;color:var(--muted);text-align:right}
+  table.dbb{border-collapse:collapse;width:100%;font-size:13px}
+  table.dbb th{text-align:left;border-bottom:2px solid var(--line);padding:6px 8px;
+               color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  table.dbb td{border-bottom:1px solid var(--line);padding:6px 8px}
+  .callout{background:#FFF7F2;border:1px solid var(--accent);border-radius:8px;
+           color:var(--ink);padding:14px 16px;margin:16px 0;font-size:14px}
+  .callout b{color:var(--accent)}
+  footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);
+         margin-top:22px;padding-top:12px}
+  .toolt{position:fixed;pointer-events:none;background:#0F172A;color:#fff;font-size:12px;
+         padding:5px 8px;border-radius:5px;opacity:0;transition:opacity .08s;z-index:60;max-width:280px}
+  .hide{display:none!important}
+  @media print{
+    .cardtools,.dlbtn,.modebar,#selwrap,.toolt{display:none!important}
+    body,.wrap{background:#fff}
+    .card{box-shadow:none;border:1px solid #cbd2dc;break-inside:avoid}
+    header,.fill,.refmark,.tile,svg,svg *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{margin:12mm}
+  }
+</style>
+
+</head>
+<body>
+<div class="toolt" id="tt"></div>
+<header>
+  <h1>State explorer <span class="sub" style="display:inline;font-weight:400">every state against the national picture (1980 census)</span></h1>
+</header>
+<div class="wrap">
+  <!-- EDIT-ME: controls card (selector dropdown + tab bar are built by JS below) -->
+  <div class="card" id="controls">
+    <div id="selwrap" class="hide">
+      <label id="sellabel" for="selsel"></label>
+      <select id="selsel" onchange="pickSel(this.value)"></select>
+    </div>
+    <div class="modebar hide" id="tabbar" style="margin-top:12px"></div>
+    <div class="cardtools hide" id="globaltools" style="margin:12px 0 0"></div>
+  </div>
+
+  <!-- EDIT-ME: panel cards are generated into this container, one per panel,
+       with ids panelcard_p1, panelcard_p2, ... (chart svg lands in draw_pK) -->
+  <div id="tabviews"></div>
+
+  <div class="callout hide" id="callout"></div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+// =========================== DATA (inlined by Stata) ========================
+const DASH = {"meta":{"title":"State explorer","subtitle":"every state against the national picture (1980 census)","theme":"tx2036","palette":["#D44500","#1B2D55","#0E9488","#6C7A8D","#8A4B10","#5B4FA0","#2B6CB0"],"selector":"state","sellabel":"Choose a state","refvalue":"United States","csv":true,"png":true,"tooltip":true,"pdf":true,"truepdf":false,"callout":"A teaching example on 1980 census extracts; the point is the layout, not the vintage.","sources":"Source: sysuse census (1980 US census extract shipped with Stata)."},"tabs":[{"name":"today","label":"Where states stand"},{"name":"rank","label":"Rankings"}],"panels":[{"id":"p1","type":"kpi","tab":"today","title":"Headline numbers","note":"","interp":"Pick a state above; tiles and bars update. 'United States' is the reference.","ytitle":"","x":"","y":["pop","medage","death_rt"],"ref":"","selcol":"state","columns":["state","pop","medage","death_rt"],"labels":{"state":"State","pop":"Population","medage":"Median age (years)","death_rt":"Deaths per 1,000"},"rows":[["Alabama",3893888.0,29.299999237060547,9.066773363794747],["Alaska",401851.0,26.100000381469727,3.991529198633324],["Arizona",2718215.0,29.200000762939453,7.808800996242019],["Arkansas",2286435.0,30.600000381469727,9.917622849545253],["California",23667902.0,29.899999618530273,7.876828288371313],["Colorado",2889964.0,28.600000381469727,6.548524479889715],["Connecticut",3107576.0,32.0,8.368258732851587],["Delaware",594338.0,29.799999237060547,8.619674326729907],["Florida",9746324.0,34.70000076293945,10.690184319749681],["Georgia",5463105.0,28.700000762939453,8.09612848371027],["Hawaii",964691.0,28.399999618530273,5.026479981672888],["Idaho",943935.0,27.600000381469727,7.154094296747127],["Illinois",11426518.0,29.899999618530273,8.946732504162686],["Indiana",5490224.0,29.200000762939453,8.615313327835077],["Iowa",2913808.0,30.0,9.042462646818183],["Kansas",2363679.0,30.100000381469727,9.269448178030942],["Kentucky",3660777.0,29.100000381469727,9.223451742621853],["Louisiana",4205900.0,27.399999618530273,8.444803728096245],["Maine",1124660.0,30.399999618530273,9.574449166859317],["Maryland",4216975.0,30.299999237060547,8.068579965496593],["Massachusetts",5737037.0,31.200000762939453,9.57271148852622],["Michigan",9262078.0,28.799999237060547,8.108547563516524],["Minnesota",4075970.0,29.200000762939453,8.197312541554526],["Mississippi",2520638.0,27.700000762939453,9.350807216268263],["Missouri",4916686.0,30.899999618530273,10.032977497444417],["Montana",786690.0,29.0,8.470935184125894],["Nebraska",1569825.0,29.700000762939453,9.214402879301833],["Nevada",800493.0,30.200000762939453,7.310494907513245],["New Hampshire",920610.0,30.100000381469727,8.24887846102041],["New Jersey",7364823.0,32.20000076293945,9.33654481580888],["New Mexico",1302894.0,27.399999618530273,6.9199796760135515],["New York",17558072.0,31.899999618530273,9.782907827237525],["N. Carolina",5881766.0,29.600000381469727,8.23324151283815],["N. Dakota",652717.0,28.299999237060547,8.5733939823844],["Ohio",10797630.0,29.899999618530273,9.100886027767205],["Oklahoma",3025290.0,30.100000381469727,9.330345190047897],["Oregon",2633105.0,30.200000762939453,8.262488582870793],["Pennsylvania",11863895.0,32.099998474121094,10.38958959093957],["Rhode Island",947154.0,31.799999237060547,9.8188890085456],["S. Carolina",3121820.0,28.100000381469727,8.052354075507237],["S. Dakota",690768.0,28.899999618530273,9.443112593519096],["Tennessee",4591120.0,30.100000381469727,8.867770827162],["Texas",14229191.0,28.200000762939453,7.5913662273561435],["Utah",1461037.0,24.200000762939453,5.546060777379354],["Vermont",511456.0,29.399999618530273,8.968513420509291],["Virginia",5346818.0,29.799999237060547,7.94790471641264],["Washington",4132156.0,29.799999237060547,7.747045368083877],["W. Virginia",1949644.0,30.399999618530273,9.840770930487823],["Wisconsin",4705767.0,29.399999618530273,8.341891980627176],["Wyoming",469557.0,27.100000381469727,6.846879079643154],["United States",467012261.58813196,30.110475540161133,8.740088017866105]]},{"id":"p2","type":"compare","tab":"today","title":"Vital rates vs. the United States","note":"Bar = selected state; | marker = United States.","interp":"","ytitle":"per 1,000 residents","x":"metric","y":["v"],"ref":"","selcol":"state","columns":["state","metric","v"],"labels":{"state":"State","metric":"metric","v":"v"},"rows":[["Alabama","Deaths per 1,000",9.066773363794747],["Alabama","Marriages per 1,000",12.588446303540318],["Alabama","Divorces per 1,000",6.868456411689294],["Alaska","Deaths per 1,000",3.991529198633324],["Alaska","Marriages per 1,000",13.3407656071529],["Alaska","Divorces per 1,000",8.752000119447256],["Arizona","Deaths per 1,000",7.808800996242019],["Arizona","Marriages per 1,000",11.118693701565181],["Arizona","Divorces per 1,000",7.323923972165557],["Arkansas","Deaths per 1,000",9.917622849545253],["Arkansas","Marriages per 1,000",11.595781205238723],["Arkansas","Divorces per 1,000",6.946184781111206],["California","Deaths per 1,000",7.876828288371313],["California","Marriages per 1,000",8.909281439478667],["California","Divorces per 1,000",5.642282953512313],["Colorado","Deaths per 1,000",6.548524479889715],["Colorado","Marriages per 1,000",12.082157424798371],["Colorado","Divorces per 1,000",6.426031604545939],["Connecticut","Deaths per 1,000",8.368258732851587],["Connecticut","Marriages per 1,000",8.382095884380623],["Connecticut","Divorces per 1,000",4.3403604610152735],["Delaware","Deaths per 1,000",8.619674326729907],["Delaware","Marriages per 1,000",7.465448953289206],["Delaware","Divorces per 1,000",3.891724910741026],["Florida","Deaths per 1,000",10.690184319749681],["Florida","Marriages per 1,000",11.11639629464401],["Florida","Divorces per 1,000",7.344204850977661],["Georgia","Deaths per 1,000",8.09612848371027],["Georgia","Marriages per 1,000",12.93000958246272],["Georgia","Divorces per 1,000",6.359570244393985],["Hawaii","Deaths per 1,000",5.026479981672888],["Hawaii","Marriages per 1,000",12.289945692454891],["Hawaii","Divorces per 1,000",4.600436823811977],["Idaho","Deaths per 1,000",7.154094296747127],["Idaho","Marriages per 1,000",14.225555785091135],["Idaho","Divorces per 1,000",6.987769284961359],["Illinois","Deaths per 1,000",8.946732504162686],["Illinois","Marriages per 1,000",9.611239399439093],["Illinois","Divorces per 1,000",4.463039396603585],["Indiana","Deaths per 1,000",8.615313327835077],["Indiana","Marriages per 1,000",10.537457123789483],["Indiana","Divorces per 1,000",7.286770084426427],["Iowa","Deaths per 1,000",9.042462646818183],["Iowa","Marriages per 1,000",9.428898541015743],["Iowa","Divorces per 1,000",4.068215887937709],["Kansas","Deaths per 1,000",9.269448178030942],["Kansas","Marriages per 1,000",10.51200268733614],["Kansas","Divorces per 1,000",5.67335919978982],["Kentucky","Deaths per 1,000",9.223451742621853],["Kentucky","Marriages per 1,000",8.93990538074294],["Kentucky","Divorces per 1,000",4.5703412144470965],["Louisiana","Deaths per 1,000",8.444803728096245],["Louisiana","Marriages per 1,000",10.333103497467842],["Louisiana","Divorces per 1,000",4.30538053686488],["Maine","Deaths per 1,000",9.574449166859317],["Maine","Marriages per 1,000",10.705457649422938],["Maine","Divorces per 1,000",5.517222982945957],["Maryland","Deaths per 1,000",8.068579965496593],["Maryland","Marriages per 1,000",10.974217300315985],["Maryland","Divorces per 1,000",4.148471356837544],["Massachusetts","Deaths per 1,000",9.57271148852622],["Massachusetts","Marriages per 1,000",8.065661769307049],["Massachusetts","Divorces per 1,000",3.115371227342616],["Michigan","Deaths per 1,000",8.108547563516524],["Michigan","Marriages per 1,000",9.382127855109836],["Michigan","Divorces per 1,000",4.86359540483248],["Minnesota","Deaths per 1,000",8.197312541554526],["Minnesota","Marriages per 1,000",9.23485697882958],["Minnesota","Divorces per 1,000",3.771126872867072],["Mississippi","Deaths per 1,000",9.350807216268263],["Mississippi","Marriages per 1,000",11.0718000760125],["Mississippi","Divorces per 1,000",5.493053742742909],["Missouri","Deaths per 1,000",10.032977497444417],["Missouri","Marriages per 1,000",11.110125804251076],["Missouri","Divorces per 1,000",5.612520303309994],["Montana","Deaths per 1,000",8.470935184125894],["Montana","Marriages per 1,000",10.59629587258005],["Montana","Divorces per 1,000",6.279474761341825],["N. Carolina","Deaths per 1,000",8.23324151283815],["N. Carolina","Marriages per 1,000",7.942852537826225],["N. Carolina","Divorces per 1,000",4.768975848410155],["N. Dakota","Deaths per 1,000",8.5733939823844],["N. Dakota","Marriages per 1,000",9.336358636284944],["N. Dakota","Divorces per 1,000",3.2816672462951018],["Nebraska","Deaths per 1,000",9.214402879301833],["Nebraska","Marriages per 1,000",9.070437787651489],["Nebraska","Divorces per 1,000",4.10364212571465],["Nevada","Deaths per 1,000",7.310494907513245],["Nevada","Marriages per 1,000",142.82823210196716],["Nevada","Divorces per 1,000",17.291843901195886],["New Hampshire","Deaths per 1,000",8.24887846102041],["New Hampshire","Marriages per 1,000",10.048772009863026],["New Hampshire","Divorces per 1,000",5.707085519383886],["New Jersey","Deaths per 1,000",9.33654481580888],["New Jersey","Marriages per 1,000",7.575742146145264],["New Jersey","Divorces per 1,000",3.774157233649743],["New Mexico","Deaths per 1,000",6.9199796760135515],["New Mexico","Marriages per 1,000",12.7723360457566],["New Mexico","Divorces per 1,000",8.002185903074233],["New York","Deaths per 1,000",9.782907827237525],["New York","Marriages per 1,000",8.230858148890151],["New York","Divorces per 1,000",3.5295447017189585],["Ohio","Deaths per 1,000",9.100886027767205],["Ohio","Marriages per 1,000",9.245732628363816],["Ohio","Divorces per 1,000",5.446472976014181],["Oklahoma","Deaths per 1,000",9.330345190047897],["Oklahoma","Marriages per 1,000",15.373402219291375],["Oklahoma","Divorces per 1,000",8.007827348783092],["Oregon","Deaths per 1,000",8.262488582870793],["Oregon","Marriages per 1,000",8.736453730481694],["Oregon","Divorces per 1,000",6.745648198609626],["Pennsylvania","Deaths per 1,000",10.38958959093957],["Pennsylvania","Marriages per 1,000",7.895636298197178],["Pennsylvania","Divorces per 1,000",2.9435526865333856],["Rhode Island","Deaths per 1,000",9.8188890085456],["Rhode Island","Marriages per 1,000",7.907900932688876],["Rhode Island","Divorces per 1,000",3.807195028474778],["S. Carolina","Deaths per 1,000",8.052354075507237],["S. Carolina","Marriages per 1,000",17.270374332921183],["S. Carolina","Divorces per 1,000",4.354831476510497],["S. Dakota","Deaths per 1,000",9.443112593519096],["S. Dakota","Marriages per 1,000",12.739443633752575],["S. Dakota","Divorces per 1,000",4.069383642554374],["Tennessee","Deaths per 1,000",8.867770827162],["Tennessee","Marriages per 1,000",12.88901183153566],["Tennessee","Divorces per 1,000",6.579222499085191],["Texas","Deaths per 1,000",7.5913662273561435],["Texas","Marriages per 1,000",12.773881522849752],["Texas","Divorces per 1,000",6.8035491265807035],["United States","Deaths per 1,000",8.740088017866105],["United States","Marriages per 1,000",9.643094000678005],["United States","Divorces per 1,000",5.1132758085172245],["Utah","Deaths per 1,000",5.546060777379354],["Utah","Marriages per 1,000",11.60682446782662],["Utah","Divorces per 1,000",5.340042723079566],["Vermont","Deaths per 1,000",8.968513420509291],["Vermont","Marriages per 1,000",10.217887755740474],["Vermont","Divorces per 1,000",5.128495901895764],["Virginia","Deaths per 1,000",7.94790471641264],["Virginia","Marriages per 1,000",11.260903213836714],["Virginia","Divorces per 1,000",4.416645563772696],["W. Virginia","Deaths per 1,000",9.840770930487823],["W. Virginia","Marriages per 1,000",8.920090026692051],["W. Virginia","Divorces per 1,000",5.269167088965985],["Washington","Deaths per 1,000",7.747045368083877],["Washington","Marriages per 1,000",11.550386771457806],["Washington","Divorces per 1,000",6.931490485838386],["Wisconsin","Deaths per 1,000",8.341891980627176],["Wisconsin","Marriages per 1,000",8.73630164859416],["Wisconsin","Divorces per 1,000",3.7286163977094486],["Wyoming","Deaths per 1,000",6.846879079643154],["Wyoming","Marriages per 1,000",14.626552260960864],["Wyoming","Divorces per 1,000",8.525056595897835]]},{"id":"p3","type":"hbar","tab":"rank","title":"Ten oldest states by median age","note":"","interp":"","ytitle":"median age (years)","x":"stname","y":["medage"],"ref":"","selcol":"","columns":["stname","medage"],"labels":{"stname":"State","medage":"Median age (years)"},"rows":[["Florida",34.70000076293945],["New Jersey",32.20000076293945],["Pennsylvania",32.099998474121094],["Connecticut",32.0],["New York",31.899999618530273],["Rhode Island",31.799999237060547],["Massachusetts",31.200000762939453],["Missouri",30.899999618530273],["Arkansas",30.600000381469727],["Maine",30.399999618530273]]}]};
+const M = DASH.meta, PAL = M.palette;
+
+// =========================== state + helpers ================================
+let state = { tab: (DASH.tabs[0] ? DASH.tabs[0].name : "main"), sel: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const tipAttr = s => esc(s).replace(/"/g,"&quot;");   // safe inside a double-quoted data-tip
+// EDIT-ME: generic smart number formatter; add $ / % / decimals per your data
+function fmtSmart(v){
+  if(v==null) return "n/a";
+  if(typeof v !== "number") return String(v);
+  const a = Math.abs(v);
+  if(a>=1e9) return (v/1e9).toFixed(1)+"B";
+  if(a>=1e6) return (v/1e6).toFixed(1)+"M";
+  if(Number.isInteger(v)) return v.toLocaleString("en-US");
+  if(a>=1000) return Math.round(v).toLocaleString("en-US");
+  if(a>=100) return v.toFixed(0);
+  if(a>=1) return v.toFixed(1);
+  return v.toFixed(2);
+}
+function colIdx(p,name){ return p.columns.indexOf(name); }
+function colLab(p,name){ return (p.labels && p.labels[name]) || name; }
+// rows visible for a panel under the current selection
+function rowsFor(p){
+  if(!p.selcol || !state.sel) return p.rows;
+  const si = colIdx(p, p.selcol);
+  return p.rows.filter(r => String(r[si])===state.sel);
+}
+// rows of the REFERENCE unit (selector's refvalue), for overlays
+function refRowsFor(p){
+  if(!p.selcol || !M.refvalue || state.sel===M.refvalue) return null;
+  const si = colIdx(p, p.selcol);
+  const rr = p.rows.filter(r => String(r[si])===M.refvalue);
+  return rr.length ? rr : null;
+}
+
+// =========================== scaffold =======================================
+(function scaffold(){
+  // selector dropdown (union of values across filterable panels; refvalue first)
+  const vals = new Set();
+  DASH.panels.forEach(p=>{ if(p.selcol){ const si=colIdx(p,p.selcol);
+    p.rows.forEach(r=>{ if(r[si]!=null) vals.add(String(r[si])); }); }});
+  if(M.selector && vals.size){
+    let arr=[...vals].sort();
+    if(M.refvalue && arr.includes(M.refvalue)) arr=[M.refvalue, ...arr.filter(x=>x!==M.refvalue)];
+    state.sel = arr[0];
+    $("sellabel").textContent = M.sellabel;
+    arr.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v;
+      $("selsel").appendChild(o); });
+    $("selsel").value = state.sel;
+    $("selwrap").classList.remove("hide");
+  }
+  // tab bar (hidden when only one tab)
+  if(DASH.tabs.length>1){
+    DASH.tabs.forEach(t=>{ const b=document.createElement("button");
+      b.id="tabbtn_"+t.name; b.textContent=t.label; b.onclick=()=>pickTab(t.name);
+      $("tabbar").appendChild(b); });
+    $("tabbar").classList.remove("hide");
+  }
+  // global tools: save-as-PDF (offline print-to-PDF) and/or one-click PDF (CDN lib)
+  if(M.pdf || M.truepdf){
+    if(M.pdf){ const b=document.createElement("button"); b.className="dlbtn";
+      b.innerHTML="&#8623; Save as PDF"; b.title="Uses your browser's print-to-PDF (works offline)";
+      b.onclick=()=>window.print(); $("globaltools").appendChild(b); }
+    if(M.truepdf){ const b=document.createElement("button"); b.className="dlbtn";
+      b.innerHTML="&#8623; Download PDF"; b.title="One-click PDF (loads a library from a CDN; needs internet)";
+      b.onclick=truePdf; $("globaltools").appendChild(b); }
+    $("globaltools").classList.remove("hide");
+  }
+  // per-tab containers + per-panel cards
+  DASH.tabs.forEach(t=>{
+    const tv=document.createElement("div"); tv.id="tv_"+t.name;
+    DASH.panels.filter(p=>p.tab===t.name).forEach(p=>{
+      const c=document.createElement("div"); c.className="card"; c.id="panelcard_"+p.id;
+      // PNG is offered on the SVG chart panels (self-contained rasterization);
+      // kpi/table are HTML, where a no-library canvas export can't be guaranteed
+      // (browsers taint the canvas), so they keep CSV. Edit CHARTPNG to change this.
+      const CHARTPNG = new Set(["line","bar","hbar","compare"]);
+      const hasData = p.type!=="html";   // html panels embed a file; no CSV/PNG
+      const tools = (M.csv && hasData?`<button class="dlbtn" onclick="csvPanel('${p.id}')">&#8623; CSV</button>`:``) +
+                    (M.png && CHARTPNG.has(p.type)?`<button class="dlbtn" onclick="panelToPng('${p.id}')">&#8623; PNG</button>`:``);
+      c.innerHTML =
+        (p.title?`<h2>${esc(p.title)}</h2>`:``) +
+        (p.interp?`<div class="interp">${esc(p.interp)}</div>`:``) +
+        (tools?`<div class="cardtools">${tools}</div>`:``) +
+        `<div id="draw_${p.id}"></div><div class="legend" id="leg_${p.id}"></div>` +
+        (p.note?`<p class="note">${esc(p.note)}</p>`:``);
+      tv.appendChild(c);
+    });
+    $("tabviews").appendChild(tv);
+  });
+  if(M.callout){ $("callout").innerHTML="<b>Note.</b> "+esc(M.callout);
+    $("callout").classList.remove("hide"); }
+  $("foot").textContent = (M.sources? M.sources+"  " : "") +
+    "Built with dashboardbuilder (Stata). Self-contained file; data embedded inline.";
+  // styled hover tooltips (self-contained; no library). Delegated off the panel
+  // container so it also covers charts re-drawn on every selection change.
+  if(M.tooltip){
+    const host=$("tabviews");
+    host.addEventListener("mousemove", e=>{ const t=e.target.closest("[data-tip]");
+      if(t) tip(e, t.getAttribute("data-tip")); else tipHide(); });
+    host.addEventListener("mouseleave", tipHide);
+  }
+})();
+
+// ---- tooltip helpers (EDIT-ME: restyle .toolt in the CSS above) ----
+const TT=$("tt");
+function tip(e,txt){ TT.textContent=txt; TT.style.opacity=1;
+  const x=Math.min(e.clientX+12, window.innerWidth-TT.offsetWidth-10);
+  TT.style.left=Math.max(6,x)+"px"; TT.style.top=(e.clientY+14)+"px"; }
+function tipHide(){ TT.style.opacity=0; }
+
+function pickTab(t){ state.tab=t; renderAll(); }
+function pickSel(v){ state.sel=v; $("selsel").value=v; renderAll(); }
+
+// =========================== renderers (EDIT-ME: plain SVG) =================
+function svgOpen(W,H,label){ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(label)}">`; }
+
+function renderLine(p){
+  const W=880,H=300,mL=58,mR=14,mT=12,mB=30;
+  const xi=colIdx(p,p.x), rows=rowsFor(p);
+  const xs=[...new Set(rows.map(r=>r[xi]).filter(v=>v!=null))];
+  const xnum = xs.every(v=>typeof v==="number");
+  const xv = xnum? xs.slice().sort((a,b)=>a-b) : xs;
+  const X = v => xnum
+      ? mL+(W-mL-mR)*((v-xv[0])/((xv[xv.length-1]-xv[0])||1))
+      : mL+(W-mL-mR)*(xv.indexOf(v)/Math.max(1,xv.length-1));
+  const series = p.y.map((yc,si)=>({name:colLab(p,yc), col:PAL[si%PAL.length],
+      pts: rows.filter(r=>r[xi]!=null&&r[colIdx(p,yc)]!=null)
+               .map(r=>[r[xi], r[colIdx(p,yc)]])
+               .sort((a,b)=> xnum? a[0]-b[0] : xv.indexOf(a[0])-xv.indexOf(b[0]))}));
+  const refRows = refRowsFor(p);
+  const refSeries = refRows ? p.y.map((yc,si)=>({name:colLab(p,yc), col:PAL[si%PAL.length],
+      pts: refRows.filter(r=>r[xi]!=null&&r[colIdx(p,yc)]!=null)
+                  .map(r=>[r[xi], r[colIdx(p,yc)]])
+                  .sort((a,b)=> xnum? a[0]-b[0] : xv.indexOf(a[0])-xv.indexOf(b[0]))})) : [];
+  const allv=[]; series.concat(refSeries).forEach(s=>s.pts.forEach(pt=>allv.push(pt[1])));
+  if(!allv.length){ $("draw_"+p.id).innerHTML="<p class='note'>No data for this selection.</p>"; return; }
+  let ymax=Math.max(...allv), ymin=Math.min(...allv);
+  const pad=(ymax-ymin)*.08||1; ymax+=pad; ymin-=pad;
+  const Y = v => mT+(H-mT-mB)*(1-(v-ymin)/((ymax-ymin)||1));
+  let svg=svgOpen(W,H,p.title||"line chart");
+  for(let g=0;g<=4;g++){ const gy=mT+(H-mT-mB)*(1-g/4);
+    svg+=`<line x1="${mL}" y1="${gy}" x2="${W-mR}" y2="${gy}" stroke="#EEF1F6"/>`+
+         `<text x="${mL-8}" y="${gy+4}" text-anchor="end" font-size="11" fill="#6C7A8D">${fmtSmart(ymin+(ymax-ymin)*g/4)}</text>`; }
+  const tickN=Math.min(6,xv.length);
+  for(let t=0;t<tickN;t++){ const v=xv[Math.round(t*(xv.length-1)/Math.max(1,tickN-1))];
+    svg+=`<text x="${X(v)}" y="${H-10}" text-anchor="middle" font-size="11" fill="#6C7A8D">${esc(String(v))}</text>`; }
+  refSeries.forEach(s=>{ let dd=""; s.pts.forEach(pt=>{ dd+=(dd?"L":"M")+X(pt[0])+","+Y(pt[1]); });
+    svg+=`<path d="${dd}" fill="none" stroke="${s.col}" stroke-width="2.2" stroke-dasharray="7 4" opacity=".75"/>`; });
+  series.forEach(s=>{ let dd=""; s.pts.forEach(pt=>{ dd+=(dd?"L":"M")+X(pt[0])+","+Y(pt[1]); });
+    svg+=`<path d="${dd}" fill="none" stroke="${s.col}" stroke-width="3.4"/>`;
+    s.pts.forEach(pt=>{ svg+=`<circle cx="${X(pt[0])}" cy="${Y(pt[1])}" r="3.4" fill="${s.col}" data-tip="${tipAttr(s.name+" — "+pt[0]+": "+fmtSmart(pt[1]))}"></circle>`; }); });
+  svg+="</svg>";
+  $("draw_"+p.id).innerHTML=svg;
+  let leg=series.map(s=>`<span><span class="sw" style="background:${s.col}"></span>${esc(s.name)}</span>`).join("");
+  if(refSeries.length) leg+=`<span><span class="sw" style="background:transparent;border-top:2px dashed #6C7A8D;height:0"></span>${esc(M.refvalue)} (dashed)</span>`;
+  $("leg_"+p.id).innerHTML=leg;
+}
+
+function renderBarish(p, horizontal){
+  const rows=rowsFor(p), xi=colIdx(p,p.x), yi=colIdx(p,p.y[0]);
+  const data=rows.filter(r=>r[xi]!=null&&r[yi]!=null).map(r=>[String(r[xi]), r[yi]]);
+  if(!data.length){ $("draw_"+p.id).innerHTML="<p class='note'>No data for this selection.</p>"; return; }
+  const vmax=Math.max(0,...data.map(d=>d[1])), vmin=Math.min(0,...data.map(d=>d[1]));
+  const span=(vmax-vmin)||1;
+  if(horizontal){
+    const W=880, rowH=26, mL=190, mR=70, H=data.length*rowH+16;
+    let svg=svgOpen(W,H,p.title||"bar chart");
+    const X=v=>mL+(W-mL-mR)*((v-vmin)/span);
+    data.forEach((d,i)=>{ const y0=8+i*rowH;
+      svg+=`<text x="${mL-8}" y="${y0+15}" text-anchor="end" font-size="12" fill="#334155">${esc(d[0]).slice(0,28)}</text>`+
+           `<rect x="${Math.min(X(0),X(d[1]))}" y="${y0+3}" width="${Math.abs(X(d[1])-X(0))}" height="${rowH-9}" rx="3" fill="${PAL[0]}" data-tip="${tipAttr(d[0]+": "+fmtSmart(d[1]))}"></rect>`+
+           `<text x="${X(d[1])+(d[1]>=0?6:-6)}" y="${y0+15}" text-anchor="${d[1]>=0?"start":"end"}" font-size="11" font-weight="700" fill="${PAL[1]}">${fmtSmart(d[1])}</text>`; });
+    if(vmin<0) svg+=`<line x1="${X(0)}" y1="4" x2="${X(0)}" y2="${H-4}" stroke="#94A3B8"/>`;
+    svg+="</svg>"; $("draw_"+p.id).innerHTML=svg;
+  } else {
+    const W=880,H=300,mL=58,mR=14,mT=12,mB=46;
+    let svg=svgOpen(W,H,p.title||"bar chart");
+    const Y=v=>mT+(H-mT-mB)*(1-(v-vmin)/span);
+    const bw=(W-mL-mR)/data.length;
+    for(let g=0;g<=4;g++){ const gy=mT+(H-mT-mB)*(1-g/4);
+      svg+=`<line x1="${mL}" y1="${gy}" x2="${W-mR}" y2="${gy}" stroke="#EEF1F6"/>`+
+           `<text x="${mL-8}" y="${gy+4}" text-anchor="end" font-size="11" fill="#6C7A8D">${fmtSmart(vmin+span*g/4)}</text>`; }
+    data.forEach((d,i)=>{ const x0=mL+i*bw;
+      svg+=`<rect x="${x0+bw*0.12}" y="${Math.min(Y(0),Y(d[1]))}" width="${bw*0.76}" height="${Math.abs(Y(d[1])-Y(0))}" rx="3" fill="${PAL[0]}" data-tip="${tipAttr(d[0]+": "+fmtSmart(d[1]))}"></rect>`+
+           `<text x="${x0+bw/2}" y="${H-28}" text-anchor="middle" font-size="11" fill="#334155">${esc(d[0]).slice(0,12)}</text>`+
+           `<text x="${x0+bw/2}" y="${Y(d[1])-6}" text-anchor="middle" font-size="11" font-weight="700" fill="${PAL[1]}">${fmtSmart(d[1])}</text>`; });
+    if(vmin<0) svg+=`<line x1="${mL}" y1="${Y(0)}" x2="${W-mR}" y2="${Y(0)}" stroke="#94A3B8"/>`;
+    svg+="</svg>"; $("draw_"+p.id).innerHTML=svg;
+  }
+  if(p.ytitle) $("leg_"+p.id).innerHTML=`<span>${esc(p.ytitle)}</span>`;
+}
+
+function renderCompare(p){
+  // bullet bars (SVG): a value bar + a reference | marker, one shared scale for
+  // the whole panel. SVG (not HTML divs) so the PNG export is self-contained.
+  const rows=rowsFor(p), xi=colIdx(p,p.x), yi=colIdx(p,p.y[0]);
+  const ri = p.ref ? colIdx(p,p.ref) : -1;
+  const refRows=refRowsFor(p);
+  function refFor(lbl,row){
+    if(ri>=0) return row[ri];
+    if(refRows){ const m=refRows.find(rr=>String(rr[xi])===lbl); return m? m[yi] : null; }
+    return null;
+  }
+  const data=rows.filter(r=>r[xi]!=null&&r[yi]!=null)
+                 .map(r=>[String(r[xi]), r[yi], refFor(String(r[xi]),r)]);
+  if(!data.length){ $("draw_"+p.id).innerHTML="<p class='note'>No data for this selection.</p>"; return; }
+  const allv=data.flatMap(d=>[d[1],d[2]]).filter(v=>v!=null);
+  const vmax=Math.max(0,...allv), vmin=Math.min(0,...allv), span=(vmax-vmin)||1;
+  const W=880, rowH=30, mL=200, mR=96, plotL=mL, plotR=W-mR, H=data.length*rowH+16;
+  const X=v=>plotL+(plotR-plotL)*((v-vmin)/span), zeroX=X(0);
+  let svg=svgOpen(W,H,p.title||"comparison");
+  data.forEach((d,i)=>{ const cy=8+i*rowH;
+    const bx=Math.min(X(d[1]),zeroX), bw=Math.abs(X(d[1])-zeroX);
+    const tt=d[0]+": "+fmtSmart(d[1])+(d[2]!=null?"  (reference "+fmtSmart(d[2])+")":"");
+    svg+=`<text x="${mL-10}" y="${cy+18}" text-anchor="end" font-size="12" fill="#334155">${esc(d[0]).slice(0,30)}</text>`+
+         `<rect x="${plotL}" y="${cy+4}" width="${plotR-plotL}" height="${rowH-13}" rx="4" fill="#EEF1F6"/>`+
+         (vmin<0?`<line x1="${zeroX}" y1="${cy+2}" x2="${zeroX}" y2="${cy+rowH-7}" stroke="#94A3B8" stroke-dasharray="2 2"/>`:``)+
+         `<rect x="${bx}" y="${cy+5}" width="${bw}" height="${rowH-15}" rx="3" fill="${PAL[0]}" opacity=".9" data-tip="${tipAttr(tt)}"></rect>`+
+         (d[2]!=null?`<line x1="${X(d[2])}" y1="${cy+1}" x2="${X(d[2])}" y2="${cy+rowH-6}" stroke="${PAL[1]}" stroke-width="2.5"/>`:``)+
+         `<text x="${plotR+8}" y="${cy+18}" font-size="11" font-weight="700" fill="${PAL[1]}">${fmtSmart(d[1])}</text>`; });
+  svg+="</svg>";
+  $("draw_"+p.id).innerHTML=svg;
+  $("leg_"+p.id).innerHTML =
+    `<span><span class="sw" style="background:${PAL[0]}"></span>value</span>`+
+    `<span><span class="sw" style="background:${PAL[1]};width:3px;height:12px"></span>reference marker`+
+    (M.refvalue&&!p.ref?` (${esc(M.refvalue)})`:``)+`</span>`+
+    (p.ytitle?`<span>${esc(p.ytitle)}</span>`:``);
+}
+
+function renderKpi(p){
+  const rows=rowsFor(p);
+  const r=rows[0];
+  if(!r){ $("draw_"+p.id).innerHTML="<p class='note'>No data for this selection.</p>"; return; }
+  let html='<div class="kpi">';
+  p.y.forEach(yc=>{ const v=r[colIdx(p,yc)];
+    html+=`<div class="tile"><div class="v">${fmtSmart(v)}</div><div class="l">${esc(colLab(p,yc))}</div></div>`; });
+  html+="</div>";
+  $("draw_"+p.id).innerHTML=html;
+  if(rows.length>1) $("leg_"+p.id).innerHTML="<span>showing the first row of "+rows.length+" for this selection; collapse your data to one row per unit for KPIs</span>";
+  else $("leg_"+p.id).innerHTML="";
+}
+
+function renderTable(p){
+  const rows=rowsFor(p), cap=500;
+  let html='<div style="overflow-x:auto"><table class="dbb"><thead><tr>';
+  p.columns.forEach(c=>{ html+=`<th>${esc(colLab(p,c))}</th>`; });
+  html+="</tr></thead><tbody>";
+  rows.slice(0,cap).forEach(r=>{ html+="<tr>"+r.map(v=>`<td>${v==null?"":esc(typeof v==="number"?fmtSmart(v):String(v))}</td>`).join("")+"</tr>"; });
+  html+="</tbody></table></div>";
+  if(rows.length>cap) html+=`<p class="note">showing first ${cap} of ${rows.length} rows; the CSV download has all rows</p>`;
+  $("draw_"+p.id).innerHTML=html; $("leg_"+p.id).innerHTML="";
+}
+
+// embed an external HTML file (e.g. a sparkta2 map) once, via <iframe srcdoc>.
+// Rendered a single time and skipped on later re-renders, so an interactive map
+// keeps its zoom/selection state when you switch tabs or the selector.
+function renderHtml(p){
+  const host=$("draw_"+p.id);
+  if(host.querySelector("iframe")) return;
+  const f=document.createElement("iframe");
+  f.setAttribute("loading","lazy"); f.setAttribute("title", p.title||"embedded content");
+  f.style.cssText="display:block;width:100%;border:0;height:"+(p.height||520)+"px";
+  f.srcdoc=p.html;                      // full HTML string, set as a property (no escaping needed)
+  host.innerHTML=""; host.appendChild(f);
+}
+
+function renderAll(){
+  DASH.tabs.forEach(t=>{ const el=$("tv_"+t.name); if(el) el.classList.toggle("hide", t.name!==state.tab);
+    const b=$("tabbtn_"+t.name); if(b) b.classList.toggle("on", t.name===state.tab); });
+  DASH.panels.filter(p=>p.tab===state.tab).forEach(p=>{
+    if(p.type==="line") renderLine(p);
+    else if(p.type==="bar") renderBarish(p,false);
+    else if(p.type==="hbar") renderBarish(p,true);
+    else if(p.type==="compare") renderCompare(p);
+    else if(p.type==="kpi") renderKpi(p);
+    else if(p.type==="html") renderHtml(p);
+    else renderTable(p);
+  });
+}
+
+// =========================== downloads ======================================
+function saveBlob(blob, name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function panelFile(pid,ext){ const p=DASH.panels.find(q=>q.id===pid);
+  return ((p.title||pid)+(p.selcol&&state.sel?"_"+state.sel:"")).replace(/[^\w]+/g,"_")+"."+ext; }
+
+function csvEscape(v){ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function csvPanel(pid){
+  const p=DASH.panels.find(q=>q.id===pid);
+  const rows=[p.columns].concat(rowsFor(p));
+  const csv=rows.map(r=>r.map(csvEscape).join(",")).join("\n");
+  saveBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}), panelFile(pid,"csv"));
+}
+
+// PNG export — SELF-CONTAINED (no library). For SVG chart panels we serialize
+// the SVG straight to a canvas (robust everywhere). For HTML panels (kpi /
+// compare / table) we wrap the node + the page CSS in an SVG <foreignObject>
+// and rasterize that; solid in Chrome/Edge/Firefox, best-effort in old Safari.
+function rasterize(svgString, w, h, name){
+  const scale=2;
+  const img=new Image();
+  const blob=new Blob([svgString],{type:"image/svg+xml;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  img.onload=function(){
+    const cv=document.createElement("canvas"); cv.width=w*scale; cv.height=h*scale;
+    const ctx=cv.getContext("2d"); ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+    try{ cv.toBlob(b=> b? saveBlob(b,name) : saveBlob(dataUrlToBlob(cv.toDataURL("image/png")),name), "image/png"); }
+    catch(e){ alert("PNG export was blocked by this browser. Try the CSV download, or a screenshot."); }
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url);
+    alert("Sorry — PNG export failed in this browser (likely Safari on an HTML panel). Try the CSV, or a screenshot."); };
+  img.src=url;
+}
+function dataUrlToBlob(u){ const b=atob(u.split(",")[1]), a=new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return new Blob([a],{type:"image/png"}); }
+function panelToPng(pid){
+  const host=$("draw_"+pid), svg=host.querySelector("svg"), name=panelFile(pid,"png");
+  if(svg){
+    const c=svg.cloneNode(true);
+    const vb=(svg.getAttribute("viewBox")||"0 0 880 300").split(/\s+/).map(Number);
+    const w=vb[2]||880, h=vb[3]||300;
+    c.setAttribute("width",w); c.setAttribute("height",h);
+    let s=new XMLSerializer().serializeToString(c);
+    s=s.replace(/(<svg[^>]*>)/, `$1<rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>`);
+    rasterize(s, w, h, name);
+  } else {
+    const css=[...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
+    const r=host.getBoundingClientRect();
+    const w=Math.max(360,Math.ceil(r.width)), h=Math.max(90,Math.ceil(r.height)+8);
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`+
+            `<foreignObject width="100%" height="100%">`+
+            `<div xmlns="http://www.w3.org/1999/xhtml" style="background:#fff"><style>${css}</style>${host.innerHTML}</div>`+
+            `</foreignObject></svg>`;
+    rasterize(s, w, h, name);
+  }
+}
+
+// one-click PDF via the CDN library (needs internet; see the Stata receipt note)
+function truePdf(){
+  if(typeof html2pdf==="undefined"){
+    alert("Download PDF needs internet: the PDF library is loaded from a CDN, so this button "+
+          "won't work on an air-gapped machine. Use 'Save as PDF' (your browser's print dialog), "+
+          "which works fully offline.");
+    return;
+  }
+  const name=(M.title||"dashboard").replace(/[^\w]+/g,"_")+".pdf";
+  html2pdf().set({margin:8, filename:name, image:{type:"jpeg",quality:0.95},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
+    jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}})
+    .from(document.querySelector(".wrap")).save();
+}
+
+renderAll();
+</script>
+</body>
+</html>

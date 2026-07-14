@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dashboardbuilder — example gallery</title>
+<style>
+  :root{
+    --navy:#1B2D55; --orange:#D44500; --link:#2B6CB0; --bg:#F5F7FA;
+    --line:#DDE3EC; --muted:#6C7A8D; --ink:#1B2D55; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:16px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:#22314f}
+  a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.92em;
+       background:#eef1f6;border-radius:4px;padding:2px 6px}
+  header{background:var(--navy);color:#fff;padding:34px 24px}
+  header .in{max-width:1000px;margin:0 auto}
+  header h1{font-size:26px;letter-spacing:.2px}
+  header h1 .b{font-weight:400;opacity:.82;font-size:18px}
+  header p{margin-top:8px;font-size:15px;opacity:.9;max-width:70ch}
+  main{max-width:1000px;margin:0 auto;padding:26px 24px 56px}
+  .lead{color:#33415c;margin:6px 0 22px;max-width:74ch}
+  .install{background:#fff;border:1px solid var(--line);border-left:4px solid var(--orange);
+           border-radius:8px;padding:14px 16px;margin:0 0 26px;overflow-x:auto}
+  .install .lbl{font-size:12px;font-weight:700;color:var(--muted);
+                text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .install code{display:block;background:transparent;padding:0;white-space:pre;font-size:13px;color:#22314f}
+  h2.sec{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+         margin:8px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:18px 20px;display:flex;flex-direction:column;
+        box-shadow:0 1px 2px rgba(15,23,42,.05)}
+  .card h3{font-size:18px;color:var(--navy);margin-bottom:4px}
+  .card .tag{font-size:12px;font-weight:700;color:var(--orange);
+             text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+  .card p{color:#3a475f;font-size:14.5px;flex:1 1 auto}
+  .card .go{align-self:flex-start;margin-top:14px;background:var(--navy);color:#fff;
+            border-radius:8px;padding:9px 16px;font-weight:600;font-size:14px}
+  .card .go:hover{background:#24386a;text-decoration:none}
+  footer{max-width:1000px;margin:0 auto;padding:0 24px 48px;color:var(--muted);font-size:13px}
+  footer a{color:var(--link)}
+  .note{font-size:13px;color:var(--muted);margin:22px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="in">
+    <h1>dashboardbuilder <span class="b">— example gallery</span></h1>
+    <p>Live dashboards built from Stata with <code>dashboardbuilder</code>. Each page is one
+       self-contained HTML file: all data is inline, every chart is plain SVG/JS, and nothing
+       loads from the internet. Open any of them, then view source to see the starter wireframe.</p>
+  </div>
+</header>
+
+<main>
+  <p class="lead">
+    <code>dashboardbuilder</code> is a Stata command that turns an analytic result into a
+    shareable, interactive HTML dashboard — tabs, KPI tiles, line/bar/comparison charts, a
+    "choose a unit" selector, per-panel CSV/PNG downloads, and a build receipt telling you what
+    still needs a human pass. The examples below are produced by <code>build_site.do</code> in
+    this repository.
+  </p>
+
+  <div class="install">
+    <div class="lbl">Install in Stata (16+)</div>
+    <code>net install dashboardbuilder, from("https://raw.githubusercontent.com/ericabooth/dashboardbuilder-stata-public/main/") replace force</code>
+  </div>
+
+  <h2 class="sec">Open a live dashboard</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="tag">Selector + reference unit</div>
+      <h3>State explorer</h3>
+      <p>Pick a state from the dropdown and every panel re-renders for it, against a national
+         reference row. Shows the selector, tabs, KPI tiles, and shared-scale comparison bars
+         with a reference marker. Texas 2036 theme.</p>
+      <a class="go" href="state_explorer.html">Open dashboard &rarr;</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Embedded map (html panel)</div>
+      <h3>Texas county readiness explorer</h3>
+      <p>A sparkta2 D3 choropleth of all 254 counties, embedded as a panel next to KPI and
+         ranking charts. Demonstrates the <code>html</code> panel type: build any HTML — here a
+         map — and drop it into a dashboard, still as one self-contained file.</p>
+      <a class="go" href="county_map_dashboard.html">Open dashboard &rarr;</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Time series across tabs</div>
+      <h3>A century of US life expectancy</h3>
+      <p>Life expectancy from 1900 to 1999 on an overview tab, and the male–female gap on a
+         second tab. Shows multi-series line charts and feeding a different data subset to each
+         panel.</p>
+      <a class="go" href="lifeexp.html">Open dashboard &rarr;</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Two-minute minimal</div>
+      <h3>Auto quick look</h3>
+      <p>The smallest useful build: a bar chart and a data table from a collapsed summary, in a
+         handful of lines. A good starting point to copy and adapt.</p>
+      <a class="go" href="auto_quick.html">Open dashboard &rarr;</a>
+    </div>
+
+  </div>
+
+  <p class="note">
+    The Texas county map uses synthetic values for illustration. The other dashboards use
+    datasets that ship with Stata (<code>auto</code>, <code>census</code>,
+    <code>uslifeexp</code>).
+  </p>
+</main>
+
+<footer>
+  Built with <a href="https://github.com/ericabooth/dashboardbuilder-stata-public">dashboardbuilder</a>
+  (Stata) and, for the county map, <a href="https://github.com/ericabooth/sparkta2-stata">sparkta2</a>.
+  © Texas 2036 Data &amp; Research. MIT-licensed.
+</footer>
+</body>
+</html>
