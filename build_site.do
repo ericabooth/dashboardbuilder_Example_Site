@@ -28,7 +28,8 @@ label var death_rt "Deaths per 1,000"
 label var marr_rt  "Marriages per 1,000"
 label var div_rt   "Divorces per 1,000"
 preserve
-    collapse (sum) pop death marriage divorce (mean) medage [aw=pop]
+    * no [aw=pop] here: it would weight the (sum) totals and ~2x the US population
+    collapse (sum) pop death marriage divorce (mean) medage
     gen double death_rt = 1000 * death / pop
     gen double marr_rt  = 1000 * marriage / pop
     gen double div_rt   = 1000 * divorce / pop
