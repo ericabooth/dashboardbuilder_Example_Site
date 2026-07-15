@@ -67,9 +67,12 @@
          padding:5px 8px;border-radius:5px;opacity:0;transition:opacity .08s;z-index:60;max-width:280px}
   .hide{display:none!important}
   @media print{
-    .cardtools,.dlbtn,.modebar,#selwrap,.toolt,.cornertools{display:none!important}
+    .cardtools,.dlbtn,.modebar,#selwrap,.toolt,.cornertools,#controls{display:none!important}
     body,.wrap{background:#fff}
     .card{box-shadow:none;border:1px solid #cbd2dc;break-inside:avoid}
+    /* keep a tall embedded panel (e.g. a map) on one page instead of orphaning a
+       near-blank first page; scrolling="no" means the cap crops cleanly, no bar */
+    .htmlcard iframe{max-height:160mm}
     header,.fill,.refmark,.tile,svg,svg *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     @page{margin:12mm}
   }
@@ -178,7 +181,7 @@ function refRowsFor(p){
   DASH.tabs.forEach(t=>{
     const tv=document.createElement("div"); tv.id="tv_"+t.name;
     DASH.panels.filter(p=>p.tab===t.name).forEach(p=>{
-      const c=document.createElement("div"); c.className="card"; c.id="panelcard_"+p.id;
+      const c=document.createElement("div"); c.className=(p.type==="html"?"card htmlcard":"card"); c.id="panelcard_"+p.id;
       // PNG is offered on the SVG chart panels (self-contained rasterization);
       // kpi/table are HTML, where a no-library canvas export can't be guaranteed
       // (browsers taint the canvas), so they keep CSV. Edit CHARTPNG to change this.
@@ -367,8 +370,9 @@ function renderHtml(p){
   const host=$("draw_"+p.id);
   if(host.querySelector("iframe")) return;
   const f=document.createElement("iframe");
-  f.setAttribute("loading","lazy"); f.setAttribute("title", p.title||"embedded content");
-  f.style.cssText="display:block;width:100%;border:0;height:"+(p.height||520)+"px";
+  f.setAttribute("loading","lazy"); f.setAttribute("scrolling","no");
+  f.setAttribute("title", p.title||"embedded content");
+  f.style.cssText="display:block;width:100%;border:0;overflow:hidden;height:"+(p.height||520)+"px";
   f.srcdoc=p.html;                      // full HTML string, set as a property (no escaping needed)
   host.innerHTML=""; host.appendChild(f);
 }
