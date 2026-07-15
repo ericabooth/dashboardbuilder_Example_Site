@@ -28,6 +28,10 @@
                   font:inherit;font-weight:600;cursor:pointer}
   .modebar button.on{background:var(--accent2);color:#fff}
   .cardtools{display:flex;gap:8px;justify-content:flex-end;margin:2px 0 10px}
+  /* corner option: float the global PDF button(s) fixed in the bottom-right */
+  .cornertools{position:fixed;right:18px;bottom:18px;margin:0!important;background:#fff;
+               border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+               box-shadow:0 3px 12px rgba(15,23,42,.18);z-index:50;justify-content:flex-end}
   .dlbtn{background:#fff;color:var(--accent2);border:1px solid var(--line);border-radius:6px;
          padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .dlbtn:hover{background:var(--bg)}
@@ -63,7 +67,7 @@
          padding:5px 8px;border-radius:5px;opacity:0;transition:opacity .08s;z-index:60;max-width:280px}
   .hide{display:none!important}
   @media print{
-    .cardtools,.dlbtn,.modebar,#selwrap,.toolt{display:none!important}
+    .cardtools,.dlbtn,.modebar,#selwrap,.toolt,.cornertools{display:none!important}
     body,.wrap{background:#fff}
     .card{box-shadow:none;border:1px solid #cbd2dc;break-inside:avoid}
     header,.fill,.refmark,.tile,svg,svg *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -98,7 +102,7 @@
 
 <script>
 // =========================== DATA (inlined by Stata) ========================
-const DASH = {"meta":{"title":"Auto quick look","subtitle":"mean price, mileage, and weight by origin (1978 autos)","theme":"simple","palette":["#2563EB","#0F172A","#0E9488","#B45309","#7C3AED","#DC2626","#64748B"],"selector":"","sellabel":"","refvalue":"","csv":true,"png":true,"tooltip":true,"pdf":false,"truepdf":false,"callout":"","sources":""},"tabs":[{"name":"main","label":"Dashboard"}],"panels":[{"id":"p1","type":"bar","tab":"main","title":"Domestic cars cost less on average","note":"","interp":"","ytitle":"mean price (USD)","x":"foreign","y":["price"],"ref":"","selcol":"","columns":["foreign","price"],"labels":{"foreign":"Car origin","price":"(mean) price"},"rows":[["Domestic",6072.4228515625],["Foreign",6384.681640625]]},{"id":"p2","type":"table","tab":"main","title":"The numbers behind the chart","note":"","interp":"","ytitle":"","x":"","y":[],"ref":"","selcol":"","columns":["foreign","price","mpg","weight"],"labels":{"foreign":"Car origin","price":"(mean) price","mpg":"(mean) mpg","weight":"(mean) weight"},"rows":[["Domestic",6072.4228515625,19.826923370361328,3317.115478515625],["Foreign",6384.681640625,24.772727966308594,2315.9091796875]]}]};
+const DASH = {"meta":{"title":"Auto quick look","subtitle":"mean price, mileage, and weight by origin (1978 autos)","theme":"simple","palette":["#2563EB","#0F172A","#0E9488","#B45309","#7C3AED","#DC2626","#64748B"],"selector":"","sellabel":"","refvalue":"","csv":true,"png":true,"tooltip":true,"pdf":false,"truepdf":false,"corner":false,"callout":"","sources":""},"tabs":[{"name":"main","label":"Dashboard"}],"panels":[{"id":"p1","type":"bar","tab":"main","title":"Domestic cars cost less on average","note":"","interp":"","ytitle":"mean price (USD)","x":"foreign","y":["price"],"ref":"","selcol":"","columns":["foreign","price"],"labels":{"foreign":"Car origin","price":"(mean) price"},"rows":[["Domestic",6072.4228515625],["Foreign",6384.681640625]]},{"id":"p2","type":"table","tab":"main","title":"The numbers behind the chart","note":"","interp":"","ytitle":"","x":"","y":[],"ref":"","selcol":"","columns":["foreign","price","mpg","weight"],"labels":{"foreign":"Car origin","price":"(mean) price","mpg":"(mean) mpg","weight":"(mean) weight"},"rows":[["Domestic",6072.4228515625,19.826923370361328,3317.115478515625],["Foreign",6384.681640625,24.772727966308594,2315.9091796875]]}]};
 const M = DASH.meta, PAL = M.palette;
 
 // =========================== state + helpers ================================
@@ -167,6 +171,8 @@ function refRowsFor(p){
       b.innerHTML="&#8623; Download PDF"; b.title="One-click PDF (loads a library from a CDN; needs internet)";
       b.onclick=truePdf; $("globaltools").appendChild(b); }
     $("globaltools").classList.remove("hide");
+    // corner option: pin the PDF button(s) to the bottom-right of the viewport
+    if(M.corner) $("globaltools").classList.add("cornertools");
   }
   // per-tab containers + per-panel cards
   DASH.tabs.forEach(t=>{

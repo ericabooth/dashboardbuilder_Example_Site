@@ -91,41 +91,44 @@ if _rc {
     di as txt "(skipping county_map_dashboard.html — sparkta2 is not installed)"
 }
 else {
-    clear
-    set obs 254
-    gen long   fips      = 48001 + (_n-1)*2
-    gen str    county    = "County " + string(fips)
-    set seed 2036
-    gen double readiness = 45 + 30*runiform()
-    gen double income    = 40000 + 35000*runiform()
-    label var readiness "Workforce readiness index (0-100, synthetic)"
-    label var income    "Median household income (USD, synthetic)"
-    tempfile counties
-    save `counties'
-    tempfile mapfile
-    sparkta2 readiness, id(fips) name(county) geo(texas) type(choropleth) ///
-        scheme(blues) title("Workforce readiness by county") ///
-        offline noopen export("`mapfile'.html")
-    use `counties', clear
-    dashboardbuilder init , title("Texas county readiness explorer") ///
-        subtitle("a sparkta2 map embedded inside a dashboardbuilder dashboard (synthetic demo)") tx2036
-    dashboardbuilder tab , name(map)     label("Map")
-    dashboardbuilder tab , name(numbers) label("The numbers")
-    dashboardbuilder panel html , tab(map) file("`mapfile'.html") height(760) ///
-        title("Readiness index by county") ///
-        interp("Darker counties score higher. A live sparkta2 D3 map embedded in the card below.") ///
-        note("Map: sparkta2 (D3 + Texas geography). Values are synthetic for illustration.")
-    preserve
-        collapse (mean) readiness income
-        dashboardbuilder panel kpi , tab(numbers) values(readiness income) title("Statewide averages")
-    restore
-    gsort -readiness
-    keep in 1/10
-    dashboardbuilder panel hbar , tab(numbers) x(county) y(readiness) ///
-        title("Ten highest-readiness counties") ytitle("readiness index (synthetic)")
-    dashboardbuilder build using "county_map_dashboard.html", replace pdf noopen ///
-        callout("Values are synthetic; the point is the pattern of embedding a map in a dashboard.") ///
-        sourcenote("Demo data are synthetic. Map by sparkta2; dashboard by dashboardbuilder.")
+    capture findfile texas_counties.csv
+    if _rc {
+        di as txt "(skipping county_map_dashboard.html — texas_counties.csv not found in this folder)"
+    }
+    else {
+        import delimited "`r(fn)'", varnames(1) stringcols(2) clear   // real fips + county names
+        set seed 2036
+        gen double readiness = 100*runiform()
+        gen double income    = 40000 + 35000*runiform()
+        label var readiness "Workforce readiness index (0-100, synthetic)"
+        label var income    "Median household income (USD, synthetic)"
+        tempfile counties
+        save `counties'
+        tempfile mapfile
+        sparkta2 readiness, id(fips) name(county) geo(texas) type(choropleth) ///
+            scheme(blues) title("Workforce readiness by county") ///
+            offline noopen export("`mapfile'.html")
+        use `counties', clear
+        dashboardbuilder init , title("Texas county readiness explorer") ///
+            subtitle("a sparkta2 map embedded inside a dashboardbuilder dashboard (synthetic demo)") tx2036
+        dashboardbuilder tab , name(map)     label("Map")
+        dashboardbuilder tab , name(numbers) label("The numbers")
+        dashboardbuilder panel html , tab(map) file("`mapfile'.html") height(760) ///
+            title("Readiness index by county") ///
+            interp("Darker counties score higher. A live sparkta2 D3 map embedded in the card below.") ///
+            note("Map: sparkta2 (D3 + Texas geography). Values are synthetic for illustration.")
+        preserve
+            collapse (mean) readiness income
+            dashboardbuilder panel kpi , tab(numbers) values(readiness income) title("Statewide averages")
+        restore
+        gsort -readiness
+        keep in 1/30
+        dashboardbuilder panel hbar , tab(numbers) x(county) y(readiness) ///
+            title("Thirty highest-readiness counties") ytitle("readiness index (synthetic)")
+        dashboardbuilder build using "county_map_dashboard.html", replace pdf corner noopen ///
+            callout("Values are synthetic; the point is the pattern of embedding a map in a dashboard.") ///
+            sourcenote("Demo data are synthetic. Map by sparkta2; dashboard by dashboardbuilder.")
+    }
 }
 
 di as res _n "site dashboards rebuilt: auto_quick, state_explorer, lifeexp" ///
