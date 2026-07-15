@@ -117,15 +117,25 @@ else {
         sparkta2 readiness, id(fips) name(county) geo(texas) type(choropleth) ///
             scheme(blues) title("Workforce readiness by county") ///
             offline noopen export("`mapfile'.html")
+        * a bivariate cut: readiness x income at once (two numeric vars => bivariate)
+        tempfile bimapfile
+        sparkta2 readiness income, id(fips) name(county) geo(texas) ///
+            title("Readiness and income together") ///
+            offline noopen export("`bimapfile'.html")
         use `counties', clear
         dashboardbuilder init , title("Texas county readiness explorer") ///
-            subtitle("a sparkta2 map embedded inside a dashboardbuilder dashboard (synthetic demo)") tx2036
-        dashboardbuilder tab , name(map)     label("Map")
+            subtitle("two sparkta2 maps embedded inside a dashboardbuilder dashboard (synthetic demo)") tx2036
+        dashboardbuilder tab , name(map)     label("Readiness map")
+        dashboardbuilder tab , name(bivar)   label("Two-variable map")
         dashboardbuilder tab , name(numbers) label("The numbers")
         dashboardbuilder panel html , tab(map) file("`mapfile'.html") height(760) ///
             title("Readiness index by county") ///
             interp("Darker counties score higher. A live sparkta2 D3 map embedded in the card below.") ///
             note("Map: sparkta2 (D3 + Texas geography). Values are synthetic for illustration.")
+        dashboardbuilder panel html , tab(bivar) file("`bimapfile'.html") height(760) ///
+            title("Two variables at once: readiness x income") ///
+            interp("A bivariate map encodes two variables in one color: each county is shaded by both readiness and income at once. The 3x3 legend shows how the two combine (deepest corner = high on both).") ///
+            note("Bivariate map: sparkta2 (D3). Values are synthetic for illustration.")
         preserve
             collapse (mean) readiness income
             dashboardbuilder panel kpi , tab(numbers) values(readiness income) title("Statewide averages")
@@ -140,5 +150,48 @@ else {
     }
 }
 
-di as res _n "site dashboards rebuilt: auto_quick, state_explorer, lifeexp" ///
-    cond(_rc==0,", county_map_dashboard","") ".html"
+* ── 5. Dropdown filter on everyday data (auto): the selector as a plain filter ─
+sysuse auto, clear
+drop if missing(rep78)
+collapse (mean) price mpg, by(foreign rep78)
+label var price "Mean price (USD)"
+label var mpg   "Mean mileage (mpg)"
+label define repL 1 "Rep. 1" 2 "Rep. 2" 3 "Rep. 3" 4 "Rep. 4" 5 "Rep. 5"
+label values rep78 repL
+dashboardbuilder init , title("Filter with a dropdown") ///
+    subtitle("1978 autos: pick an origin and the bars refilter (the selector as a plain filter)") ///
+    selector(foreign) sellabel("Choose origin")
+dashboardbuilder panel bar , x(rep78) y(price) ///
+    title("Mean price by repair record") ///
+    interp("Pick Domestic or Foreign above; the bars here re-render for that origin.") ///
+    ytitle("mean price (USD)")
+dashboardbuilder panel bar , x(rep78) y(mpg) ///
+    title("Mean mileage by repair record") ytitle("mean mpg")
+dashboardbuilder build using "auto_filter.html", replace pdf noopen ///
+    sourcenote("Source: sysuse auto (1978 automobile data shipped with Stata).")
+
+* ── 6. Embed a sparkta2 CHART (not a map): -panel html- takes any HTML ─────────
+capture which sparkta2
+if _rc {
+    di as txt "(skipping chart_embed.html — sparkta2 is not installed)"
+}
+else {
+    sysuse census, clear
+    collapse (sum) pop, by(region)
+    decode region, gen(regionname)
+    tempfile donut
+    sparkta2 pop, name(regionname) type(donut) ///
+        title("1980 US population by census region") ///
+        offline noopen export("`donut'.html")
+    dashboardbuilder init , title("Embed a chart") ///
+        subtitle("the html panel takes any self-contained HTML - here a sparkta2 D3 donut")
+    dashboardbuilder panel html , file("`donut'.html") height(560) ///
+        title("Population by census region (1980)") ///
+        interp("The same panel html that embeds a map embeds any self-contained HTML: a sparkta2 chart here, but Google Charts, Plotly, or a hand-built page work the same way (CDN-based libraries just need internet).") ///
+        note("Chart: sparkta2 (D3). Source: 1980 census extract (sysuse census).")
+    dashboardbuilder build using "chart_embed.html", replace pdf noopen ///
+        sourcenote("Chart by sparkta2; dashboard by dashboardbuilder (Texas 2036 Data & Research).")
+}
+
+di as res _n "site dashboards rebuilt: auto_quick, state_explorer, lifeexp, auto_filter" ///
+    " (+ county_map_dashboard and chart_embed when sparkta2 is installed)."

@@ -86,9 +86,9 @@
     <div class="card">
       <div class="tag">Embedded map (html panel)</div>
       <h3>Texas county readiness explorer</h3>
-      <p>A sparkta2 D3 choropleth of all 254 counties, embedded as a panel next to KPI and
-         ranking charts. Demonstrates the <code>html</code> panel type: build any HTML — here a
-         map — and drop it into a dashboard, still as one self-contained file.</p>
+      <p>Two sparkta2 D3 maps of all 254 counties (a choropleth and a bivariate two-variable
+         cut), each embedded as a panel via the <code>html</code> type, alongside KPI and
+         ranking charts. Still one self-contained file, with the PDF button pinned to the corner.</p>
       <a class="go" href="county_map_dashboard.html">Open dashboard &rarr;</a>
     </div>
 
@@ -107,6 +107,24 @@
       <p>The smallest useful build: a bar chart and a data table from a collapsed summary, in a
          handful of lines. A good starting point to copy and adapt.</p>
       <a class="go" href="auto_quick.html">Open dashboard &rarr;</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Selector as a filter</div>
+      <h3>Filter with a dropdown</h3>
+      <p>1978 auto data: choose Domestic or Foreign from the dropdown and the bar charts
+         re-render for that origin. Shows the "choose a unit" selector working as a plain
+         filter on everyday data, not just geography.</p>
+      <a class="go" href="auto_filter.html">Open dashboard &rarr;</a>
+    </div>
+
+    <div class="card">
+      <div class="tag">Embed any viz</div>
+      <h3>Embed a chart</h3>
+      <p>A sparkta2 D3 donut dropped into a panel with the <code>html</code> type. The same
+         mechanism embeds any self-contained HTML (Google Charts, Plotly, a hand-built page);
+         CDN-based libraries just need internet.</p>
+      <a class="go" href="chart_embed.html">Open dashboard &rarr;</a>
     </div>
 
   </div>
