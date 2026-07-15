@@ -376,6 +376,11 @@ function renderHtml(p){
 function renderAll(){
   DASH.tabs.forEach(t=>{ const el=$("tv_"+t.name); if(el) el.classList.toggle("hide", t.name!==state.tab);
     const b=$("tabbtn_"+t.name); if(b) b.classList.toggle("on", t.name===state.tab); });
+  // Show the selector only on tabs where a panel actually filters by it, so the
+  // "choose a unit" control isn't offered where it would do nothing.
+  if(M.selector){ const sw=$("selwrap");
+    if(sw && DASH.tabs.length){ const anyFilter=DASH.panels.some(p=>p.tab===state.tab && p.selcol);
+      sw.classList.toggle("hide", !anyFilter); } }
   DASH.panels.filter(p=>p.tab===state.tab).forEach(p=>{
     if(p.type==="line") renderLine(p);
     else if(p.type==="bar") renderBarish(p,false);
@@ -427,16 +432,50 @@ function rasterize(svgString, w, h, name){
 }
 function dataUrlToBlob(u){ const b=atob(u.split(",")[1]), a=new Uint8Array(b.length);
   for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return new Blob([a],{type:"image/png"}); }
+// wrap a string into lines that fit maxW px at font-size fs (rough char metric)
+function wrapText(text, maxW, fs){
+  const cpl=Math.max(8, Math.floor(maxW/(fs*0.56)));
+  const words=String(text).split(/\s+/), lines=[]; let cur="";
+  words.forEach(w=>{ if(((cur?cur+" ":"")+w).length>cpl && cur){ lines.push(cur); cur=w; }
+                     else cur=(cur?cur+" ":"")+w; });
+  if(cur) lines.push(cur); return lines;
+}
+// read a panel's on-screen legend as {color,label} items, to redraw in the PNG
+function legendItems(pid){
+  const leg=$("leg_"+pid); if(!leg) return [];
+  return [...leg.children].map(sp=>{ const sw=sp.querySelector(".sw"); let color=null;
+    if(sw){ const cs=getComputedStyle(sw);
+      const bg=cs.backgroundColor;
+      color=(bg && bg!=="rgba(0, 0, 0, 0)" && bg!=="transparent") ? bg : cs.borderTopColor; }
+    return {color, label: sp.textContent.trim()}; }).filter(it=>it.label||it.color);
+}
 function panelToPng(pid){
+  const p=DASH.panels.find(q=>q.id===pid);
   const host=$("draw_"+pid), svg=host.querySelector("svg"), name=panelFile(pid,"png");
   if(svg){
-    const c=svg.cloneNode(true);
+    // Compose ONE export image = title + interpretation + chart + legend + note,
+    // all as SVG (no <foreignObject>), so it rasterizes reliably everywhere and
+    // the chart travels with its context — not just the bare plot area.
     const vb=(svg.getAttribute("viewBox")||"0 0 880 300").split(/\s+/).map(Number);
-    const w=vb[2]||880, h=vb[3]||300;
-    c.setAttribute("width",w); c.setAttribute("height",h);
-    let s=new XMLSerializer().serializeToString(c);
-    s=s.replace(/(<svg[^>]*>)/, `$1<rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>`);
-    rasterize(s, w, h, name);
+    const W=vb[2]||880, chartH=vb[3]||300, PAD=18;
+    const FF="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+    let y=PAD; const parts=[];
+    if(p.title){ parts.push(`<text x="${PAD}" y="${y+16}" font-family="${FF}" font-size="18" font-weight="700" fill="#1B2D55">${esc(p.title)}</text>`); y+=32; }
+    if(p.interp){ wrapText(p.interp, W-2*PAD, 13).forEach(ln=>{ parts.push(`<text x="${PAD}" y="${y+11}" font-family="${FF}" font-size="13" fill="#7A4A12">${esc(ln)}</text>`); y+=18; }); y+=6; }
+    parts.push(`<svg x="0" y="${y}" width="${W}" height="${chartH}" viewBox="0 0 ${W} ${chartH}">${svg.innerHTML}</svg>`); y+=chartH+10;
+    const items=legendItems(pid);
+    if(items.length){ let x=PAD;
+      items.forEach(it=>{ const w=(it.color?20:0)+it.label.length*6.6+18;
+        if(x+w>W-PAD && x>PAD){ x=PAD; y+=20; }
+        if(it.color){ parts.push(`<rect x="${x}" y="${y+2}" width="14" height="10" rx="2" fill="${it.color}"/>`); x+=20; }
+        parts.push(`<text x="${x}" y="${y+11}" font-family="${FF}" font-size="12" fill="#64748B">${esc(it.label)}</text>`);
+        x+=it.label.length*6.6+18; });
+      y+=22;
+    }
+    if(p.note){ wrapText(p.note, W-2*PAD, 12).forEach(ln=>{ parts.push(`<text x="${PAD}" y="${y+10}" font-family="${FF}" font-size="12" fill="#64748B">${esc(ln)}</text>`); y+=16; }); }
+    const H=y+PAD;
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#ffffff"/>${parts.join("")}</svg>`;
+    rasterize(s, W, H, name);
   } else {
     const css=[...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
     const r=host.getBoundingClientRect();

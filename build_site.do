@@ -67,6 +67,14 @@ keep in 1/10
 rename state stname
 dashboardbuilder panel hbar , tab(rank) x(stname) y(medage) ///
     title("Ten oldest states by median age") ytitle("median age (years)")
+* full leaderboard table, also static -> the whole Rankings tab is selection-
+* independent, so the "choose a state" dropdown auto-hides on it.
+use `censusplus', clear
+drop if state == "United States"
+keep state region pop medage death_rt marr_rt div_rt
+rename state stname
+label var stname "State"
+dashboardbuilder panel table , tab(rank) title("Every state, every metric")
 dashboardbuilder build using "state_explorer.html", replace pdf noopen ///
     callout("A teaching example on 1980 census extracts; the point is the layout, not the vintage.") ///
     sourcenote("Source: sysuse census (1980 US census extract shipped with Stata).")
